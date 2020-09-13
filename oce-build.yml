@@ -1,0 +1,106 @@
+parameters:
+  name: 'OCE build job'
+  vmImage: 'Ubuntu-16.04'
+
+jobs:
+- job: ${{ parameters.name }}
+  timeoutInMinutes: 180
+  variables:
+    n_cores: 2
+
+  pool:
+    vmImage: ${{ parameters.vmImage }}
+
+  steps:
+
+  - ${{ if contains(parameters.vmImage, 'Ubuntu') }}:
+    - bash: |
+        sudo apt-get update
+        sudo apt-get install tcl-dev tcl-thread tk-dev libfreeimage-dev
+        sudo apt-get install libtbb-dev tclthread
+        sudo apt-get install libgl1-mesa-dev libxmu-dev libxi-dev
+        sudo apt-get install xsltproc doxygen
+        sudo apt-get install libvtk6-dev graphviz
+      displayName: 'apt install dependencies'
+    - bash: |
+        mkdir cmake-build
+        cd cmake-build
+        cmake -DUSE_TBB:BOOL=ON \
+              -DUSE_FREEIMAGE:BOOL=ON \
+              -DUSE_VTK=ON \
+              -DINSTALL_DIR=$(Pipeline.Workspace)/oce-build \
+              ..
+      displayName: 'Configure Linux build'
+    - bash: |
+        cd cmake-build
+        make -j3
+      displayName: 'Building Linux oce'
+    - bash: |
+        cd cmake-build
+        make install
+      displayName: 'Install Linux'
+    - bash: |
+        export CASROOT=$(Pipeline.Workspace)
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(Pipeline.Workspace)/oce-build/lib
+        export PATH=$PATH:$(Pipeline.Workspace)/oce-build/bin
+        pwd
+        ls .
+        xvfb-run --auto-servernum --server-args='-screen 0, 1600x900x24' DRAWEXE -v -f << EOT
+        testgrid -outdir occt -xml summary.xml -refresh 300
+        exit
+        EOT
+      displayName: 'Run Linux tests'
+
+  - ${{ if contains(parameters.vmImage, 'MacOS') }}:
+    - bash: |
+        brew update
+        brew install freetype
+        brew install freeimage
+        brew install tbb
+        brew install vtk
+        brew install doxygen
+      displayName: 'brew install dependencies'
+    - bash: |
+        mkdir cmake-build
+        cd cmake-build
+        cmake -DUSE_TBB:BOOL=ON \
+              -DUSE_FREEIMAGE:BOOL=ON \
+              ..
+      displayName: 'Configure OSX build'
+    - bash: |
+        cd cmake-build
+        make -j3
+      displayName: 'Building OSX oce'
+    - bash: |
+        cd cmake-build
+        make install
+      displayName: 'Install OSX'
+    - bash: |
+        pwd
+        ls .
+        export CASROOT=$(Pipeline.Workspace)
+        DRAWEXE -v -f << EOT
+        testgrid -outdir occt -xml summary.xml -refresh 300
+        exit
+        EOT
+      displayName: 'Run OSX tests'
+
+  - ${{ if contains(parameters.vmImage, 'Windows') }}:
+    - bash: |
+        choco install -y --allow-empty-checksums magicsplat-tcl-tk doxygen.install
+        which choco
+      displayName: 'Choco install dependencies'
+    - powershell: |
+        nuget install freetype -Version 2.8.0.1
+        nuget install freeimage -Version 3.16.0
+      displayName: 'Nuget install dependencies'
+    - bash: |
+        mkdir cmake-build
+        cd cmake-build
+        ls D:\\a\\1\\s\
+        ls D:\\a\\1\\s\\freetype.2.8.0.1\\build\\native\\include
+        cmake -D3RDPARTY_FREETYPE_INCLUDE_DIR_freetype2=D:\\a\\1\\s\\freetype.2.8.0.1\\build\\native\\include \
+              -D3RDPARTY_FREETYPE_INCLUDE_DIR_ft2build=D:\\a\\1\\s\\freetype.2.8.0.1\\build\\native \
+              -G "Visual Studio 16 2019" -A x64 \
+              ..
+      displayName: 'Configure Windows build'

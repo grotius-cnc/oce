@@ -1,0 +1,35 @@
+trigger:
+  branches:
+    include:
+    - azure-ci
+
+jobs:
+- template: oce-build.yml
+  parameters:
+    name: Ubuntu_16_04
+    vmImage: 'Ubuntu-16.04'
+
+- template: oce-build.yml
+  parameters:
+    name: Ubuntu_18_04
+    vmImage: 'Ubuntu-18.04'
+
+- template: oce-build.yml
+  parameters:
+    name: Ubuntu_20_04
+    vmImage: 'Ubuntu-20.04'
+
+- template: oce-build.yml
+  parameters:
+    name: MacOS_10_14
+    vmImage: 'MacOS-10.14'
+
+- template: oce-build.yml
+  parameters:
+    name: MacOS_10_15
+    vmImage: 'MacOS-10.15'
+
+- template: oce-build.yml
+  parameters:
+    name: Windows_VS2019
+    vmImage: 'Windows-2019'
