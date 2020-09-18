@@ -1,0 +1,115 @@
+language: cpp
+
+services:
+  - xvfb
+
+cache:
+ apt: true
+
+env:
+  - RUN_TESTS=false USE_VTK=ON BUILD_USE_PCH=ON BUILD_TYPE="Release"
+
+addons:
+  apt:
+    packages:
+      - tcl-dev
+      - tcl-thread
+      - tk-dev
+      - libfreeimage-dev
+      - libtbb-dev
+      - tclthread
+      - libgl1-mesa-dev
+      - libxmu-dev
+      - libxi-dev
+      - xsltproc
+      - doxygen
+      - ninja-build
+      - libvtk6-dev
+      - graphviz
+      - ccache
+      
+matrix:
+  include:
+  - os: linux
+    compiler: gcc
+    env: USE_VTK=OFF
+    dist: trusty
+  - os: linux
+    compiler: gcc
+    env: BUILD_USE_PCH=OFF BUILD_TYPE="Debug"
+    dist: trusty
+  - os: linux
+    compiler: gcc
+    dist: xenial
+  - os: linux
+    compiler: gcc
+    dist: bionic
+  - os: linux
+    compiler: gcc
+    env: USE_VTK=OFF
+    dist: focal
+  - os: linux
+    compiler: gcc
+    dist: focal
+  - os: linux
+    compiler: clang
+    env: USE_VTK=ON BUILD_USE_PCH=OFF
+    dist: focal
+  - os: linux
+    compiler: clang
+    env: USE_VTK=ON BUILD_USE_PCH=OFF BUILD_TYPE="RelWithDebInfo"
+    dist: focal
+  - os: linux
+    compiler: clang
+    env: USE_VTK=ON BUILD_USE_PCH=OFF BUILD_TYPE="Debug"
+    dist: focal
+  - os: osx
+    osx_image: xcode11.6
+    compiler: clang
+  - os: osx
+    osx_image: xcode12
+    compiler: clang
+  - os: osx
+    osx_image: xcode9.3beta
+    compiler: clang
+  - os: linux
+    dist: trusty
+    language: android
+
+
+before_install:
+  # install requirements for osx
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+        brew update;
+        brew install freetype;
+        brew install freeimage;
+        brew install doxygen;
+        brew install graphviz;
+    fi
+
+script:
+  - mkdir cmake-build
+  - cd cmake-build
+  - cmake .. -DUSE_VTK=$USE_VTK -USE_FREEIMAGE=ON -DBUILD_USE_PCH=$BUILD_USE_PCH -DCMAKE_BUILD_TYPE:STRING=$BUILD_TYPE
+  - make -j8 | grep Built
+  - sudo make install > installed-files.txt
+
+after_script:
+  # run the test suite
+  - export CASROOT=/home/travis/build/tpaviot/oce
+  - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+  - |
+    DRAWEXE -v -f << EOT
+    testgrid -outdir occt -xml summary.xml -refresh 300
+    exit
+    EOT
+
+cache:
+    directories:
+    - /home/travis/build/tpaviot/oce/cmake-build
+
+branches:
+  only:
+    - master
+    - /^review/
+    - oce/patches
